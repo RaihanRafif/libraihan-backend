@@ -3,12 +3,17 @@ const db = require("../models");
 const bcrypt = require('bcrypt');
 const User = db.users;
 
-exports.getUser = async (email) => {
+const getUserByEmail = async (email) => {
   const user = await User.findOne({ where: { email: email } });
   return user;
 };
 
-exports.getUserById = async (userId) => {
+const getUserByUserId = async (id) => {
+  const user = await User.findOne({ where: { id: id } });
+  return user;
+};
+
+const getUserById = async (userId) => {
   const user = await User.findOne({ where: { id: userId } });
   return user;
 }
@@ -16,19 +21,16 @@ exports.getUserById = async (userId) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body
-
-    console.log("rrrr");
-
-    const userExist = await this.getUser(email)
+  
+    const userExist = await getUserByEmail(email)
 
     if (!userExist) {
       throw new Error(`Account not registered`);
     }
 
     const hashedPassword = userExist.dataValues.password
-    console.log(password);
 
-    const match = await bcrypt.compare(password, hashedPassword);
+    const match = bcrypt.compare(password, hashedPassword);
     if (!match) {
       throw new Error(`Inccorect Password!`);
     }
@@ -45,7 +47,7 @@ exports.login = async (req, res, next) => {
 
 exports.create = async (req, res, next) => {
   try {
-    req.body.role = "user"
+    // req.body.role = "user"
     const validationRules = {
       firstName: /^[a-zA-Z]+$/,
       lastName: /^[a-zA-Z]+$/,
@@ -57,7 +59,7 @@ exports.create = async (req, res, next) => {
 
     const validateField = (fieldName, value) => {
       const regex = validationRules[fieldName];
-      console.log(regex);
+      // console.log(regex);
       if (!regex.test(value)) {
         throw new Error(`Invalid ${fieldName} format`);
       }
@@ -71,7 +73,7 @@ exports.create = async (req, res, next) => {
       validateField(field, req.body[field]);
     }
 
-    const emailExist = await this.getUser(req.body.email);
+    const emailExist = await getUserByEmail(req.body.email);
     if (emailExist) {
       throw new Error("Email is already registered");
     }
@@ -102,7 +104,7 @@ exports.create = async (req, res, next) => {
 exports.update = async (req, res, next) => {
   try {
     const userId = req.params.id; // Assuming the user ID is provided in the request params
-    const user = await User.findByPk(userId); // Fetch the user by ID
+    const user = await getUserById(userId); // Fetch the user by ID
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -132,10 +134,10 @@ exports.update = async (req, res, next) => {
 exports.delete = async (req, res, next) => {
   try {
     const userId = req.params.id; // Assuming the user ID is provided in the request params
-    const user = await User.findByPk(userId); // Fetch the user by ID
+    const user = await getUserByUserId(userId); // Fetch the user by ID
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      throw res.status(404).json({ message: "User not found" });
     }
 
     await user.destroy(); // Delete the user

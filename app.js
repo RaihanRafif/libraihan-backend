@@ -6,6 +6,7 @@ const path = require('path');
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
+const booksRouter = require('./routes/books');
 
 const app = express();
 const port = 3000
@@ -19,6 +20,7 @@ const db = require('./models')
 db.sequelize.sync()
 
 app.use('/api/user', usersRouter);
+app.use('/api/book', booksRouter);
 
 
 app.use(ErrorHandler)

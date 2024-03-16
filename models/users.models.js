@@ -26,6 +26,10 @@ module.exports = (sequelize, Sequelize) => {
         role: {
             type: Sequelize.STRING,
             allowNull: false
+        },
+        photoId: {
+            type: Sequelize.STRING,
+            allowNull: true
         }
 
     })
