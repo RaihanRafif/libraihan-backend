@@ -1,6 +1,6 @@
 const { nanoid } = require('nanoid');
 const db = require("../models");
-const bcrypt = require('bcrypt');
+const TokenManager = require('../tokenize/TokenManager');
 const Book = db.books;
 
 const getBookByTitle = async (title) => {
@@ -13,40 +13,143 @@ const getBookByAuthor = async (author) => {
     return book;
 };
 
+const getBookByUserId = async (userId) => {
+    const book = await Book.findAll({ where: { userId: userId } });
+    return book;
+};
+
 const getBookById = async (bookId) => {
     const book = await Book.findOne({ where: { id: bookId } });
     return book;
 }
 
-exports.get = async (req, res, next) => {
-    try {
+const getBookByTitleAndAuthor = async (title, author, userId) => {
+    const book = await Book.findOne({ where: { title: title, author: author, userId: userId } });
+    return book;
+};
 
-        // res.json({
-        //   message: "Login success!",
-        //   data: bookExist.dataValues.id,
-        // });
-
-    } catch (error) {
-
-    }
-}
 
 exports.create = async (req, res, next) => {
     try {
-        // res.json({
-        //   message: "Book created successfully.",
-        //   data: createdBook,
-        // });
+        const { title, author, publisher, pages, summary, isbn, genre } = req.body;
+        const bearerHeader = req.headers.authorization;
+
+        // Verify the bearer token and get the user ID
+        const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Validate input
+        if (!title || !author || !publisher || !pages || !summary || !genre || !isbn) {
+            return res.status(400).json({ error: "All book details are required" });
+        }
+
+        // Check if a book with the same title and author exists for the user
+        const existingBook = await getBookByTitleAndAuthor(title, author, userId);
+        if (existingBook) {
+            return res.status(409).json({ error: "A book with the same title and author already exists for the user" });
+        }
+
+        const book = {
+            title,
+            author,
+            publisher,
+            pages,
+            summary,
+            userId,
+            genre,
+            ISBN: isbn
+        };
+
+        // Create the book
+        const createdBook = await Book.create(book);
+
+        res.status(201).json({
+            message: "Book created successfully.",
+            data: createdBook,
+        });
     } catch (err) {
         next(err);
     }
 };
 
+exports.get = async (req, res, next) => {
+    try {
+        const bookId = req.query.id;
+        const bookTitle = req.query.title && String(req.query.title); // Convert if title exists
+        const bookAuthor = req.query.author && String(req.query.author); // Convert if author exists
+        const bookISBN = req.query.isbn && String(req.query.isbn); // Convert if isbn exists
+        const bookPublisher = req.query.publisher && String(req.query.publisher); // Convert if publisher exists
+
+        const bearerHeader = req.headers.authorization;
+        const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+        let books = await getBookByUserId(userId);
+
+        // Combine filter criteria into a single object
+        const filterCriteria = {
+            ...(bookId && { id: bookId }),
+            ...(bookTitle && { title: bookTitle }),
+            ...(bookAuthor && { author: bookAuthor }),
+            ...(bookISBN && { isbn: bookISBN }),
+            ...(bookPublisher && { publisher: bookPublisher }),
+        };
+
+        // Filter books based on combined criteria (using spread syntax)
+        books = books.filter((book) => Object.keys(filterCriteria).every((key) => book[key] == filterCriteria[key] || !filterCriteria[key]));
+
+        // Check if any book is found
+        if (books.length === 0) {
+            const errorMessage = bookId
+                ? `Book with id ${bookId} not found.`
+                : "No books matching your criteria found.";
+            return res.json({ message: errorMessage });
+        }
+
+        res.json({
+            message: "Books retrieved successfully.",
+            data: books,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 exports.update = async (req, res, next) => {
     try {
+        const bookId = req.params.id; // Get the book ID from the request parameters
+        const { title, author, publisher, pages, summary, isbn } = req.body;
+        const bearerHeader = req.headers.authorization;
 
-        // await book.save(); // Save the updated book
-        // res.json({ message: "Book updated successfully.", data: book });
+        // Verify the bearer token and get the user ID
+        const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Check if the book exists and belongs to the user
+        const book = await getBookById(bookId);
+        if (!book || book.userId !== userId) {
+            return res.status(404).json({ error: "Book not found or unauthorized" });
+        }
+
+        // Update the book with the provided data
+        await book.update({
+            title,
+            author,
+            publisher,
+            pages,
+            summary,
+            ISBN: isbn
+        });
+
+        res.json({
+            message: "Book updated successfully.",
+            data: book,
+        });
     } catch (err) {
         next(err);
     }
@@ -54,12 +157,27 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
     try {
+        const bookId = req.params.id; // Get the book ID from the request parameters
+        const bearerHeader = req.headers.authorization;
 
-        // await book.destroy(); // Delete the book
-        // res.json({ message: "Book deleted successfully.", data: book });
+        // Verify the bearer token and get the user ID
+        const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Check if the book exists and belongs to the user
+        const book = await getBookById(bookId);
+        if (!book || book.userId !== userId) {
+            return res.status(404).json({ error: "Book not found or unauthorized" });
+        }
+
+        // Delete the book
+        await book.destroy();
+
+        res.json({ message: "Book deleted successfully." });
     } catch (err) {
         next(err);
     }
 };
-
-

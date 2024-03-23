@@ -1,7 +1,13 @@
 const { nanoid } = require('nanoid');
 const db = require("../models");
 const bcrypt = require('bcrypt');
+const path = require('path')
+const TokenManager = require('../tokenize/TokenManager');
+const fs = require('fs');
+const { addRefreshToken } = require('./authentications.controller');
 const User = db.users;
+const UserImage = db.userImages;
+const Authentication = db.authentications;
 
 const getUserByEmail = async (email) => {
   const user = await User.findOne({ where: { email: email } });
@@ -13,37 +19,38 @@ const getUserByUserId = async (id) => {
   return user;
 };
 
-const getUserById = async (userId) => {
-  const user = await User.findOne({ where: { id: userId } });
-  return user;
-}
-
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body
-  
-    const userExist = await getUserByEmail(email)
+    const { email, password } = req.body;
 
+    const userExist = await getUserByEmail(email);
     if (!userExist) {
       throw new Error(`Account not registered`);
     }
+    const hashedPassword = userExist.dataValues.password;
 
-    const hashedPassword = userExist.dataValues.password
+    const match = await bcrypt.compare(password, hashedPassword); // Await here
 
-    const match = bcrypt.compare(password, hashedPassword);
     if (!match) {
-      throw new Error(`Inccorect Password!`);
+      throw new Error(`Incorrect Password!`);
     }
+    const accessToken = TokenManager.generateAccessToken(userExist.dataValues.id);
+    const refreshToken = TokenManager.generateRefreshToken(userExist.dataValues.id);
 
-    res.json({
-      message: "Login success!",
-      data: userExist.dataValues.id,
+    await Authentication.create({ token: refreshToken });
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Authentication berhasil ditambahkan',
+      data: {
+        accessToken,
+        refreshToken,
+      },
     });
-
   } catch (error) {
-
+    next(error); // Forward the error to the error handling middleware
   }
-}
+};
 
 exports.create = async (req, res, next) => {
   try {
@@ -92,6 +99,23 @@ exports.create = async (req, res, next) => {
     };
 
     const createdUser = await User.create(user);
+    if (!createdUser) {
+      throw new Error("User created failed");
+    }
+
+    if (req.file) {
+      const userImage = {
+        url: req.file.filename,
+        userId: id
+      }
+
+      const createdUserImage = await UserImage.create(userImage)
+
+      if (!createdUserImage) {
+        throw new Error("Image User created failed");
+      }
+    }
+
     res.json({
       message: "User created successfully.",
       data: createdUser,
@@ -103,14 +127,20 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const userId = req.params.id; // Assuming the user ID is provided in the request params
-    const user = await getUserById(userId); // Fetch the user by ID
+    const bearerHeader = req.headers.authorization;
 
-    if (!user) {
+    // Verify the bearer token and get the user ID
+    const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+    if (!userId) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Perform updates based on the request body fields
+    const user = await getUserByUserId(userId);
+
+    console.log(req.body);
+
+    // Update user information
     if (req.body.firstName) {
       user.firstName = req.body.firstName;
     }
@@ -124,7 +154,27 @@ exports.update = async (req, res, next) => {
       user.email = req.body.email;
     }
 
-    await user.save(); // Save the updated user
+    // Handle photo update
+    if (req.file) {
+      // Delete any existing photo from server
+      const existingUserImage = await UserImage.findOne({ where: { userId: userId } });
+      if (existingUserImage && existingUserImage.url) {
+        const filePath = path.join(__dirname, '..', 'public/images', existingUserImage.url);
+        await fs.unlinkSync(filePath); // Delete the file
+        await existingUserImage.destroy(); // Delete the database record
+      }
+
+      // Create new photo record
+      const userImage = {
+        url: req.file.filename,
+        userId: userId
+      };
+      await UserImage.create(userImage);
+    }
+
+    // Save the updated user to the database
+    await user.save();
+
     res.json({ message: "User updated successfully.", data: user });
   } catch (err) {
     next(err);
@@ -133,18 +183,31 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    const userId = req.params.id; // Assuming the user ID is provided in the request params
-    const user = await getUserByUserId(userId); // Fetch the user by ID
+    const bearerHeader = req.headers.authorization;
 
-    if (!user) {
-      throw res.status(404).json({ message: "User not found" });
+    // Verify the bearer token and get the user ID
+    const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+    const user = await getUserByUserId(userId)
+
+    if (!userId) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    await user.destroy(); // Delete the user
+    // Delete photo file from server
+    const userImage = await UserImage.findOne({ where: { userId: userId } });
+    if (userImage && userImage.url) {
+      const filePath = path.join(__dirname, '..', 'public/images', userImage.url);
+      await fs.unlinkSync(filePath);
+    }
+
+    // Delete database records
+    await user.destroy();
+    await UserImage.destroy({ where: { userId: userId } }); // Delete any associated images
+
     res.json({ message: "User deleted successfully.", data: user });
   } catch (err) {
     next(err);
   }
 };
-
 
