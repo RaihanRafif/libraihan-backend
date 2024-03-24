@@ -1,7 +1,15 @@
 const { nanoid } = require('nanoid');
 const db = require("../models");
+const TokenManager = require('../tokenize/TokenManager');
 
-const Quotation = db.quotations; // Assuming your quotation model is named "quotations"
+const Quotation = db.quotations;
+const Book = db.books;
+
+const getBookByBookIdAndUserId = async (bookId, userId) => {
+  const book = await Book.findOne({ where: { id: bookId, userId: userId } });
+  return book;
+}
+
 
 exports.get = async (req, res, next) => {
   try {
@@ -26,6 +34,11 @@ exports.get = async (req, res, next) => {
 
 exports.create = async (req, res, next) => {
   try {
+    const bookId = req.params.id; // Get the book ID from the request parameters
+    if (!bookId) {
+      return res.status(404).json({ error: "Book Not Found" });
+    }
+
     const bearerHeader = req.headers.authorization;
 
     // Verify the bearer token and get the user ID
@@ -35,14 +48,19 @@ exports.create = async (req, res, next) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { quote, bookId, page } = req.body;
+    const { quote, page } = req.body;
+
+    const bookAuthorizeExist = await getBookByBookIdAndUserId(bookId, userId)
+
+    if (!bookAuthorizeExist) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
     if (!quote || !bookId || !page) {
       throw new Error("Please provide all required fields: quote, bookId, page, userId");
     }
 
     const newQuotation = await Quotation.create({
-      id: `quotation-${nanoid(16)}`,
       quote,
       bookId,
       page,
@@ -58,11 +76,18 @@ exports.create = async (req, res, next) => {
 // Function to update a quotation by its ID
 exports.update = async (req, res, next) => {
   try {
+    const bearerHeader = req.headers.authorization;
+    const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const quotationId = req.params.id;
-    const { quote, bookId, page, userId } = req.body;
+    const { quote, bookId, page } = req.body;
 
     const [updatedCount] = await Quotation.update(
-      { quote, bookId, page, userId },
+      { quote, bookId, page },
       { where: { id: quotationId } }
     );
 
@@ -80,9 +105,18 @@ exports.update = async (req, res, next) => {
 // Function to delete a quotation by its ID
 exports.delete = async (req, res, next) => {
   try {
+    const bearerHeader = req.headers.authorization;
+
+    // Verify the bearer token and get the user ID
+    const userId = TokenManager.verifyRefreshToken(bearerHeader);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const quotationId = req.params.id;
 
-    const deletedCount = await Quotation.destroy({ where: { id: quotationId } });
+    const deletedCount = await Quotation.destroy({ where: { id: quotationId, userId: userId } });
 
     if (deletedCount === 0) {
       throw new Error("Quotation not found");

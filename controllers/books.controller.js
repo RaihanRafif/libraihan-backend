@@ -2,6 +2,7 @@ const { nanoid } = require('nanoid');
 const db = require("../models");
 const TokenManager = require('../tokenize/TokenManager');
 const Book = db.books;
+const BookImage = db.bookImages;
 
 const getBookByTitle = async (title) => {
     const book = await Book.findOne({ where: { title: title } });
@@ -20,6 +21,11 @@ const getBookByUserId = async (userId) => {
 
 const getBookById = async (bookId) => {
     const book = await Book.findOne({ where: { id: bookId } });
+    return book;
+}
+
+const getBookByBookIdAndUserId = async (bookId, userId) => {
+    const book = await Book.findOne({ where: { id: bookId, userId: userId } });
     return book;
 }
 
@@ -66,6 +72,24 @@ exports.create = async (req, res, next) => {
         // Create the book
         const createdBook = await Book.create(book);
 
+        if (!createdBook) {
+            throw new Error("Book created failed");
+        }
+
+        if (req.file) {
+            const bookImage = {
+                url: req.file.filename,
+                bookId: createdBook.id
+            }
+
+            const createdBookImage = await BookImage.create(bookImage)
+
+            if (!createdBookImage) {
+                throw new Error("Image Book created failed");
+            }
+        }
+
+
         res.status(201).json({
             message: "Book created successfully.",
             data: createdBook,
@@ -98,8 +122,16 @@ exports.get = async (req, res, next) => {
         };
 
         // Filter books based on combined criteria (using spread syntax)
-        books = books.filter((book) => Object.keys(filterCriteria).every((key) => book[key] == filterCriteria[key] || !filterCriteria[key]));
-
+        books = books.filter((book) => {
+            return Object.keys(filterCriteria).every((key) => {
+                if (key === "title") {
+                    // Case-insensitive search for containing words
+                    return book.title.toLowerCase().includes(filterCriteria.title.toLowerCase());
+                } else {
+                    return book[key] == filterCriteria[key] || !filterCriteria[key];
+                }
+            });
+        });
         // Check if any book is found
         if (books.length === 0) {
             const errorMessage = bookId
@@ -158,6 +190,10 @@ exports.update = async (req, res, next) => {
 exports.delete = async (req, res, next) => {
     try {
         const bookId = req.params.id; // Get the book ID from the request parameters
+        if (!bookId) {
+            return res.status(404).json({ error: "Book Not Found" });
+        }
+
         const bearerHeader = req.headers.authorization;
 
         // Verify the bearer token and get the user ID

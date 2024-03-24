@@ -37,6 +37,10 @@ exports.login = async (req, res, next) => {
     const accessToken = TokenManager.generateAccessToken(userExist.dataValues.id);
     const refreshToken = TokenManager.generateRefreshToken(userExist.dataValues.id);
 
+    var userImage
+    // Find user image associated with the logged-in user
+    userImage = await UserImage.findOne({ where: { userId: userExist.id } });
+
     await Authentication.create({ token: refreshToken });
 
     res.status(201).json({
@@ -45,6 +49,7 @@ exports.login = async (req, res, next) => {
       data: {
         accessToken,
         refreshToken,
+        userImage,
       },
     });
   } catch (error) {
@@ -100,6 +105,7 @@ exports.create = async (req, res, next) => {
 
     const createdUser = await User.create(user);
     if (!createdUser) {
+
       throw new Error("User created failed");
     }
 

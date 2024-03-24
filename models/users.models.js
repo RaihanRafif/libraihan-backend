@@ -27,11 +27,6 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.STRING,
             allowNull: false
         },
-        photoId: {
-            type: Sequelize.STRING,
-            allowNull: true
-        }
-
     })
     return User
 }
