@@ -1,3 +1,69 @@
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Book:
+ *       type: object
+ *       required:
+ *         - title
+ *         - author
+ *         - publisher
+ *         - pages
+ *         - userId
+ *         - ISBN
+ *         - genre
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: The auto-generated id of the book
+ *         title:
+ *           type: string
+ *           description: The title of your book
+ *         author:
+ *           type: string
+ *           description: The book author
+ *         publisher:
+ *           type: boolean
+ *           description: The book publisher
+ *         pages:
+ *           type: integer
+ *           description: The total pages of your book
+ *         summary:
+ *           type: string
+ *           description: The summary of your book
+ *         userId:
+ *           type: string
+ *           description: The ID of user that has this book
+ *         ISBN:
+ *           type: string
+ *           description: The ISBN of your book
+ *         genre:
+ *           type: string
+ *           description: The genre of your book
+ *         createdAt:
+ *           type: string
+ *           format: date
+ *           description: The date the book was added
+ *         updatedAt:
+ *           type: string
+ *           format: date
+ *           description: The date the book was updated
+ *       example:
+ *         id: 1
+ *         title: Pride and Prejudice
+ *         author: Jane Austen
+ *         publisher: Penguin Classics
+ *         pages: 336
+ *         summary: Novel ini mengisahkan tentang percintaan dan konvensi sosial di Inggris abad ke-19, terutama antara tokoh Elizabeth Bennet dan Mr. Darcy.
+ *         userId: user-lbUxfSsLXOQCMn9f
+ *         ISBN: 9780141439518
+ *         genre: Fiksi Klasik
+ *         finished: false
+ *         createdAt: 2020-03-10T04:05:06.157Z
+ *         updatedAt: 2020-03-10T04:05:06.157Z
+ */
+
+
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');

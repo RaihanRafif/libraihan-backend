@@ -1,8 +1,11 @@
 require('dotenv').config();
 
+const options=require('./swagger');
 const express = require('express');
 const path = require('path');
-const bodyParser = require('body-parser');
+const bodyParser = require('body-parser'),
+    swaggerJsdoc = require("swagger-jsdoc"),
+    swaggerUi = require("swagger-ui-express");;
 
 const usersRouter = require('./routes/users');
 const booksRouter = require('./routes/books');
@@ -11,7 +14,7 @@ const quotationsRouter = require('./routes/quotations');
 const ErrorHandler = require('./middlewares/errorHandler');
 
 const app = express();
-const port = 3000
+const port = 5000
 
 app.use(bodyParser.json());
 app.use(express.json());
@@ -24,6 +27,13 @@ db.sequelize.sync()
 app.use('/api/user', usersRouter);
 app.use('/api/book', booksRouter);
 app.use('/api/quotation', quotationsRouter);
+
+const specs = swaggerJsdoc(options);
+app.use(
+    "/api-docs",
+    swaggerUi.serve,
+    swaggerUi.setup(specs)
+);
 
 
 app.use(ErrorHandler)
