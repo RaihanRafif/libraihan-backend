@@ -29,6 +29,12 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
+      bookReview: {
+        type: Sequelize.STRING,
+      },
+      finished: {
+        type: Sequelize.BOOLEAN,
+      },
       userId: {
         type: Sequelize.STRING
       },

@@ -37,7 +37,7 @@ const getBookByTitleAndAuthor = async (title, author, userId) => {
 
 exports.create = async (req, res, next) => {
     try {
-        const { title, author, publisher, pages, summary, isbn, genre } = req.body;
+        const { title, author, publisher, pages, summary, isbn, genre, finished, bookReview } = req.body;
         const bearerHeader = req.headers.authorization;
 
         // Verify the bearer token and get the user ID
@@ -48,7 +48,7 @@ exports.create = async (req, res, next) => {
         }
 
         // Validate input
-        if (!title || !author || !publisher || !pages || !summary || !genre || !isbn) {
+        if (!title || !author || !publisher || !pages || !genre || !finished) {
             return res.status(400).json({ error: "All book details are required" });
         }
 
@@ -58,6 +58,8 @@ exports.create = async (req, res, next) => {
             return res.status(409).json({ error: "A book with the same title and author already exists for the user" });
         }
 
+        finished ? '' : finished = false
+
         const book = {
             title,
             author,
@@ -66,6 +68,8 @@ exports.create = async (req, res, next) => {
             summary,
             userId,
             genre,
+            bookReview,
+            finished,
             ISBN: isbn
         };
 

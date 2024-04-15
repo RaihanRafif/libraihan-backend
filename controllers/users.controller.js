@@ -71,7 +71,6 @@ exports.create = async (req, res, next) => {
 
     const validateField = (fieldName, value) => {
       const regex = validationRules[fieldName];
-      // console.log(regex);
       if (!regex.test(value)) {
         throw new Error(`Invalid ${fieldName} format`);
       }
@@ -84,6 +83,7 @@ exports.create = async (req, res, next) => {
       }
       validateField(field, req.body[field]);
     }
+
 
     const emailExist = await getUserByEmail(req.body.email);
     if (emailExist) {
@@ -143,8 +143,6 @@ exports.update = async (req, res, next) => {
     }
 
     const user = await getUserByUserId(userId);
-
-    console.log(req.body);
 
     // Update user information
     if (req.body.firstName) {

@@ -61,8 +61,31 @@
  *         finished: false
  *         createdAt: 2020-03-10T04:05:06.157Z
  *         updatedAt: 2020-03-10T04:05:06.157Z
+* tags:
+ *   name: Books
+ *   description: The books managing API
+ * /api/book:
+ *   post:
+ *     summary: Create a new book
+ *     tags: [Books]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Book'
+ *     responses:
+ *       200:
+ *         description: The created book.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
+ *       500:
+ *         description: Some server error
  */
-
 
 const express = require('express');
 const router = express.Router();

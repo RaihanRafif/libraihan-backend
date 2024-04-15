@@ -21,6 +21,8 @@ module.exports = (sequelize, DataTypes) => {
     pages: DataTypes.INTEGER,
     summary: DataTypes.STRING,
     userId: DataTypes.STRING,
+    finished: DataTypes.BOOLEAN,
+    bookReview:DataTypes.STRING,
     ISBN: DataTypes.STRING
   }, {
     sequelize,
